@@ -1,24 +1,37 @@
 # Image Archiver (collect_media)
 
-A Rust command-line tool that copies photos and videos (typically from iPhone) to a destination directory with normalized, date-based filenames extracted from EXIF metadata.
+A Rust command-line tool that archives photos and videos to a destination
+directory with dates taken (best-guessed from metadata) as filenames. It tries
+to avoid archiving more than one copy of the same photo.
 
 ## Problem
 
-Managing photos and videos from multiple sources (iPhone backups, external drives, various folders) is challenging because:
+Photos.app sucks for backing up photos from iPhones because:
+- It cannot copy photos off the iPhone in the first place (often it gets stuck on photos in the iPhone that have the same name in the filesystem, or gets stuck on other potentially-corrupted photos)
+- It cannot resume partial backups (at least not for large backups)
+- It cannot deal with backups of >1000 photos (which is a very common situation!)
 
-- Files have inconsistent naming conventions
-- Duplicates are hard to identify
-- Original creation/modification dates are often lost in filenames
-- Files from different sources need to be consolidated into a single library
+And even after using Image Capture.app to get the iPhone's photos into MacOS in
+the first place, you cannot use Photos.app to import and deduplicate the photos
+and back the photos up to an external drive, because:
+- daemons like mediaanalysisd, photoslibraryd, photoanalysisd will start up and
+run forever, preventing the drives from ever being unmounted or ejected, at
+least not at your convenience (even if you have the patience to wait a whole
+day for a mere 2000 photos, you will never be able to eject the drive)
+- it creates Apple duplicate files all over the place (`._*` files), making
+junk on your external drive and then on your internal drive if you ever copy
+everything back over
 
 ## Solution
 
-`collect_media` consolidates media files from multiple input directories into a single output directory with:
+This project consolidates media files from multiple input directories into a single output directory with:
 
-- **Normalized filenames** based on EXIF metadata dates (creation and modification)
-- **Duplicate detection** via byte-by-byte comparison
-- **Non-destructive operation** - only copies files, never modifies or deletes originals
-- **Failed case tracking** - problematic files are logged with debug information
+- **Normalized filenames**: The filename will be a `YYYY-MM-DD_HH.mm.SS.NNN`
+date timestamp, generated according to my heuristic that tries to narrow down
+to the time that the item was created
+- **Deduplication** via byte-by-byte comparison of the images (if the date timestamp matches)
+- **Non-destructive operation** - never modifies or deletes original files if the destination and source volumes are different
+- **Failed case tracking** - problematic files are logged with debug information, so the user can manually intervene
 
 ## Usage
 
